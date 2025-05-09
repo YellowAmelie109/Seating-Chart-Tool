@@ -5,9 +5,16 @@
 import tkinter 
 from tkinter import ttk
 import sqlite3 as sql
+import bcrypt
 
 connection = sql.connect("seatingChartData.db")
 cur = connection.cursor()
+#password = bcrypt.hashpw("h".encode('utf-8') , bcrypt.gensalt() )
+#query = "INSERT INTO Teachers (FirstName, LastName, Email, Password) VALUES ('Bob', 'Marley', 'bob.marley@gmail.com', ?)"
+#cur.execute(query,(password,))
+#connection.commit()
+#for row in cur.execute("SELECT * FROM Teachers"):
+#    print(row)
 
 class Page:
     def __init__(self):
@@ -17,14 +24,14 @@ class Page:
         self.frame.destroy()
         page.frame = ttk.Frame(root)
         page.frame.grid()
-        page.display(page)
+        page.display()
 
 
 class LoggedOutPage(Page):
     def display(self):
         ttk.Label(self.frame, text="Please register or log in to access your seating charts").grid(column=1,row=0,sticky=(tkinter.W,tkinter.E))
-        ttk.Button(self.frame, text="Register", command=lambda:self.goto(RegisterPage)).grid(column=1,row=1)
-        ttk.Button(self.frame, text="Log in", command=lambda:self.goto(LoginPage)).grid(column=1,row=2,sticky=tkinter.S)
+        ttk.Button(self.frame, text="Register", command=lambda:self.goto(RegisterPage())).grid(column=1,row=1)
+        ttk.Button(self.frame, text="Log in", command=lambda:self.goto(LoginPage())).grid(column=1,row=2,sticky=tkinter.S)
         #Add whitespace, looks weird don't like it and style it ig
 
 class RegisterPage(Page):
@@ -57,9 +64,17 @@ class LoginPage(Page):
         ttk.Entry(self.frame, textvariable=self.email).grid(column=1,row=0,columnspan=2)
         ttk.Label(self.frame, text="Password:").grid(column=0,row=1)
         ttk.Entry(self.frame, textvariable=self.password).grid(column=1,row=1,columnspan=2)
-        ttk.Button(self.frame, text="Login",command=lambda:self.validate(self)).grid(column=1,row=2)
+        ttk.Button(self.frame, text="Login",command=self.validate).grid(column=1,row=2)
     def validate(self):
-        self.goto(self,MainPage)
+        #Get from db
+        correctPass=bcrypt.hashpw("h".encode('utf-8') , bcrypt.gensalt() )
+        print(type(correctPass))
+        #^ 
+        #Checks that the password entered matches the stored, encrypted password
+        if bcrypt.checkpw(self.password.get().encode('utf-8'), correctPass):
+            self.goto(MainPage())
+        else:
+            print("nuhuh")
 
 class MainPage(Page):
     def display(self):
