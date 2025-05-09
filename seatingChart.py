@@ -1,11 +1,18 @@
+#Window needs to be resized when going to pages
+#Styling
+#Create the database
+
 import tkinter 
 from tkinter import ttk
+import sqlite3 as sql
+
+connection = sql.connect("seatingChartData.db")
+cur = connection.cursor()
 
 class Page:
     def __init__(self):
         self.frame = ttk.Frame(root)
         self.frame.grid()
-        self.ok="ok"
     def goto(self, page):
         self.frame.destroy()
         page.frame = ttk.Frame(root)
@@ -41,16 +48,32 @@ class RegisterPage(Page):
         ttk.Entry(self.frame, textvariable=self.password2).grid(column=1,row=4,columnspan=2)
         ttk.Button(self.frame, text="Register",command="").grid(column=1,row=5)
 
-class LoginPage:
+class LoginPage(Page):
     def display(self):
-        email = tkinter.StringVar()
-        password = tkinter.StringVar()
+        self.email = tkinter.StringVar()
+        self.password = tkinter.StringVar()
         #Add back button
         ttk.Label(self.frame, text="Email:").grid(column=0,row=0)
-        ttk.Entry(self.frame, textvariable=email).grid(column=1,row=0,columnspan=2)
+        ttk.Entry(self.frame, textvariable=self.email).grid(column=1,row=0,columnspan=2)
         ttk.Label(self.frame, text="Password:").grid(column=0,row=1)
-        ttk.Entry(self.frame, textvariable=password).grid(column=1,row=1,columnspan=2)
-        ttk.Button(self.frame, text="Login",command="").grid(column=1,row=2)
+        ttk.Entry(self.frame, textvariable=self.password).grid(column=1,row=1,columnspan=2)
+        ttk.Button(self.frame, text="Login",command=lambda:self.validate(self)).grid(column=1,row=2)
+    def validate(self):
+        self.goto(self,MainPage)
+
+class MainPage(Page):
+    def display(self):
+        self.CanvasWidth = 500
+        self.CanvasHeight = 500
+        ttk.Button(self.frame, text="Class",command="").grid(column=0,row=0)
+        ttk.Button(self.frame, text="Student",command="").grid(column=1,row=0)
+        ttk.Button(self.frame,text="Arrange",command="").grid(column=2,row=0)
+        ttk.Button(self.frame,text="Hide images",command="").grid(column=4,row=0)
+        ttk.Button(self.frame,text="Hide names",command="").grid(column=5,row=0)
+        tkinter.Canvas(self.frame,
+                       width=self.CanvasWidth,
+                       height=self.CanvasHeight,
+                       background='white').grid(column=0,row=1,columnspan=5,rowspan=5)
 
 
 root = tkinter.Tk()
