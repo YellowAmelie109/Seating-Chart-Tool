@@ -50,9 +50,9 @@ class RegisterPage(Page):
         ttk.Label(self.frame, text="Email:").grid(column=0,row=2)
         ttk.Entry(self.frame, textvariable=self.email).grid(column=1,row=2,columnspan=2)
         ttk.Label(self.frame, text="Password:").grid(column=0,row=3)
-        ttk.Entry(self.frame, textvariable=self.password).grid(column=1,row=3,columnspan=2)
+        ttk.Entry(self.frame, textvariable=self.password,show='*').grid(column=1,row=3,columnspan=2)
         ttk.Label(self.frame, text="Confirm password:").grid(column=0,row=4)
-        ttk.Entry(self.frame, textvariable=self.password2).grid(column=1,row=4,columnspan=2)
+        ttk.Entry(self.frame, textvariable=self.password2,show='*').grid(column=1,row=4,columnspan=2)
         ttk.Button(self.frame, text="Register",command="").grid(column=1,row=5)
 
 class LoginPage(Page):
@@ -63,18 +63,17 @@ class LoginPage(Page):
         ttk.Label(self.frame, text="Email:").grid(column=0,row=0)
         ttk.Entry(self.frame, textvariable=self.email).grid(column=1,row=0,columnspan=2)
         ttk.Label(self.frame, text="Password:").grid(column=0,row=1)
-        ttk.Entry(self.frame, textvariable=self.password).grid(column=1,row=1,columnspan=2)
+        ttk.Entry(self.frame, textvariable=self.password,show='*').grid(column=1,row=1,columnspan=2)
         ttk.Button(self.frame, text="Login",command=self.validate).grid(column=1,row=2)
     def validate(self):
-        #Get from db
-        correctPass=bcrypt.hashpw("h".encode('utf-8') , bcrypt.gensalt() )
-        print(type(correctPass))
-        #^ 
-        #Checks that the password entered matches the stored, encrypted password
+        #Fetches encrypted correct password from databse
+        cur.execute("SELECT Password from Teachers WHERE Email = ?",(self.email.get(),))
+        correctPass=cur.fetchone()[0]
+        #Checks that the password entered matches the encrypted correct password
         if bcrypt.checkpw(self.password.get().encode('utf-8'), correctPass):
             self.goto(MainPage())
         else:
-            print("nuhuh")
+            print("nuhuh") #Appropiate message on GUI
 
 class MainPage(Page):
     def display(self):
@@ -95,3 +94,4 @@ root = tkinter.Tk()
 root.title( "Seating Planner" )
 LoggedOutPage().display()
 root.mainloop()
+connection.close()
