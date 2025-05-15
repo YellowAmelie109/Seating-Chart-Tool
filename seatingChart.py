@@ -1,6 +1,11 @@
+#Add seats
+#Add databases
+#Students pop-up
+#POI
+#Students
+
 #Window needs to be resized when going to pages and text display(password invalid format text)
 #Styling
-#Label to tell user password format
 
 import tkinter 
 from tkinter import ttk
@@ -137,29 +142,44 @@ class LoginPage(Page):
 
 class MainPage(Page):
     def display(self):
-        self.CanvasWidth = 500
-        self.CanvasHeight = 500
-        #ttk.Button(self.frame, text="Class",command="").grid(column=0,row=0)
+        self.CanvasWidth = 900
+        self.CanvasHeight = 900
+
         self.displayMenu()
-        ttk.Button(self.frame, text="Student",command="").grid(column=1,row=0)
-        ttk.Button(self.frame,text="Arrange",command="").grid(column=2,row=0)
-        ttk.Button(self.frame,text="Hide images",command="").grid(column=4,row=0)
-        ttk.Button(self.frame,text="Hide names",command="").grid(column=5,row=0)
         tkinter.Canvas(self.frame,
                        width=self.CanvasWidth,
                        height=self.CanvasHeight,
                        background='white').grid(column=0,row=1,columnspan=5,rowspan=5)
+    
     def displayMenu(self):
-        menubar = tkinter.Menu(self.frame)
-        self.frame['menu'] = menubar
-        menu_file = tkinter.Menu(menubar)
-        menu_edit = tkinter.Menu(menubar)
-        menubar.add_cascade(menu=menu_file, label='File')
-        menubar.add_cascade(menu=menu_edit, label='Edit')
-        menu_file.add_command(label='New', command="")
-        menu_file.add_command(label='Open...', command="")
-        menu_edit.add_command(label='New', command="")
-        menu_edit.add_command(label='Open...', command="")
+        menubar = tkinter.Menu(root,background="lightyellow")
+        root['menu'] = menubar
+
+        #"Class" dropdown menu
+        menu_class = tkinter.Menu(menubar)
+        menubar.add_cascade(menu=menu_class, label='Class')
+        menu_class.add_command(label='Switch class', command="")
+        menu_class.add_command(label="Save", command="")
+        menu_class.add_command(label="Edit class",command="")
+
+        #"Students" dropdown menu
+        menu_students = tkinter.Menu(menubar)
+        menubar.add_cascade(menu=menu_students, label="Students")
+        menu_students.add_command(label='Edit students', command ="")
+
+        #"Arrange" dropdown menu
+        menu_arrange = tkinter.Menu(menubar)
+        menubar.add_cascade(menu=menu_arrange, label="Arrange")
+        
+        #Tick box to choose to hide or show names of students
+        hideNames=tkinter.StringVar()
+        menubar.add_checkbutton(label="Hide names", variable=hideNames, onvalue=True, offvalue=False)
+
+        #Tick box to choose to hide or show images of students
+        hideImages=tkinter.StringVar()
+        menubar.add_checkbutton(label="Hide images", variable=hideImages, onvalue=True, offvalue=False)
+
+        
 
 
 
@@ -167,6 +187,6 @@ class MainPage(Page):
 root = tkinter.Tk()
 root.title( "Seating Planner" )
 root.option_add('*tearOff', False)
-MainPage().display()
+LoggedOutPage().display()
 root.mainloop()
 connection.close()
