@@ -1,6 +1,6 @@
-#Window needs to be resized when going to pages
+#Window needs to be resized when going to pages and text display(password invalid format text)
 #Styling
-#Password format, with label to tell user password format
+#Label to tell user password format
 
 import tkinter 
 from tkinter import ttk
@@ -11,10 +11,12 @@ import re
 connection = sql.connect("seatingChartData.db")
 cur = connection.cursor()
 
-domains=["exe-coll.ac.uk","exetermathematicsschool.ac.uk"]
+DOMAINS=("exe-coll.ac.uk","exetermathematicsschool.ac.uk")
 #At least 1 letter, any number of numbers, one or no (+, least one alphanumeric character), one @
 #eg. EdHorncastle183+f8h_6f@
-emailFormat="[A-z]+\d*(\+\w+)?@" 
+EMAILFORMAT="[A-z]+\d*(\+\w+)?@" 
+
+
 
 class Page:
     def __init__(self):
@@ -43,49 +45,57 @@ class RegisterPage(Page):
         self.password2 = tkinter.StringVar()
         self.invalid = tkinter.StringVar()
 
-        #Add validation and whitespace and a back button
-        ttk.Label(self.frame, text="First name:").grid(column=0,row=0,padx=10,pady=10)
-        ttk.Entry(self.frame, textvariable = self.firstName).grid(column=1,row=0,columnspan=2)
-        ttk.Label(self.frame, text="Last name:").grid(column=0,row=1)
-        ttk.Entry(self.frame, textvariable=self.lastName).grid(column=1,row=1,columnspan=2)
-        ttk.Label(self.frame, text="Email:").grid(column=0,row=2)
-        ttk.Entry(self.frame, textvariable=self.email).grid(column=1,row=2,columnspan=2)
-        ttk.Label(self.frame, text="Password:").grid(column=0,row=3)
-        ttk.Entry(self.frame, textvariable=self.password,show='*').grid(column=1,row=3,columnspan=2)
-        ttk.Label(self.frame, text="Confirm password:").grid(column=0,row=4)
-        ttk.Entry(self.frame, textvariable=self.password2,show='*').grid(column=1,row=4,columnspan=2)
-        ttk.Button(self.frame, text="Register",command=self.addtoDatabase).grid(column=1,row=5)
-        ttk.Label(self.frame, textvariable=self.invalid).grid(column=1,row=6)
+        #Add styling
+        ttk.Button(self.frame, text="< Back", command=lambda:self.goto(LoggedOutPage())).grid(column=0,row=0)
+        ttk.Label(self.frame,text="Register:").grid(column=1,row=0)
+        ttk.Label(self.frame, text="First name:").grid(column=1,row=1,padx=10,pady=10)
+        ttk.Entry(self.frame, textvariable = self.firstName).grid(column=2,row=1,columnspan=2)
+        ttk.Label(self.frame, text="Last name:").grid(column=1,row=2)
+        ttk.Entry(self.frame, textvariable=self.lastName).grid(column=2,row=2,columnspan=2)
+        ttk.Label(self.frame, text="Email:").grid(column=1,row=3)
+        ttk.Entry(self.frame, textvariable=self.email).grid(column=2,row=3,columnspan=2)
+        ttk.Label(self.frame, text="Password:").grid(column=1,row=4)
+        ttk.Entry(self.frame, textvariable=self.password,show='*').grid(column=2,row=4,columnspan=2)
+        ttk.Label(self.frame,text="Passwords must contain at least one each of capital letter, symbol, and number and be between 8-16 characters"
+                  ).grid(column=1,row=5,columnspan=10)
+        ttk.Label(self.frame, text="Confirm password:").grid(column=1,row=6)
+        ttk.Entry(self.frame, textvariable=self.password2,show='*').grid(column=2,row=6,columnspan=2)
+        ttk.Button(self.frame, text="Register",command=self.addtoDatabase).grid(column=1,row=7)
+        ttk.Label(self.frame, textvariable=self.invalid).grid(column=1,row=8,columnspan=10) #columnspan?
 
     def addtoDatabase(self):
         query="INSERT INTO Teachers (FirstName, LastName, Email, Password) VALUES (?, ?, ?, ?)"
         #Checking email is at one of the allowed domains and follows the regex format at the top
         validEmail=False
-        for domain in domains:
-            if re.search(emailFormat+domain,self.email.get()):
+        for domain in DOMAINS:
+            if re.search(EMAILFORMAT+domain,self.email.get()):
                 validEmail=True
         if validEmail:
             #Checking password fields are valid
-            if self.password.get()==self.password2.get() and self.password.get()!="":
-                self.password = bcrypt.hashpw(self.password.get().encode('utf-8') , bcrypt.gensalt() )
-                #Prevents emails being registered multiple times
-                try:
-                    #Adding to the database
-                    cur.execute(query,(self.firstName.get(),self.lastName.get(),self.email.get(),self.password))
-                    connection.commit()
-                    self.goto(MainPage())
-        #Error messages
-                except sql.IntegrityError:
-                    self.invalid.set("Email already registered")
-                except:
-                    self.invalid.set("An error occurred")
-            else:
-                if self.password.get()=="":
-                    self.invalid.set("Enter a password")
-                elif self.password.get()!=self.password2.get():
-                    self.invalid.set("Passwords do not match")
+            password=self.password.get()
+            if password==self.password2.get() and password!="":
+                #At least one each of symbol, capital letter, and number between 8-16 characters
+                if re.search("[^\w\s]+",password) and re.search("[A-Z]+",password) and re.search("\d+",
+                password) and len(password)>=8 and len(password)<=16:
+                    self.password = bcrypt.hashpw(password.encode('utf-8') , bcrypt.gensalt() )
+                    #Prevents emails being registered multiple times
+                    try:
+                        #Adding to the database
+                        cur.execute(query,(self.firstName.get(),self.lastName.get(),self.email.get(),self.password))
+                        connection.commit()
+                        self.goto(MainPage())
+            #Error messages
+                    except sql.IntegrityError:
+                        self.invalid.set("Email already registered")
+                    except:
+                        self.invalid.set("An error occurred")
                 else:
-                    self.invalid.set("Password not in correct format")
+                    self.invalid.set("Password must contain at least one each of symbol, \ncapital letter, and number and must be between \n8-16 characters")
+            else:
+                if password=="":
+                    self.invalid.set("Enter a password")
+                elif password!=self.password2.get():
+                    self.invalid.set("Passwords do not match")
         else:
             self.invalid.set("Invalid email")
 
@@ -97,13 +107,15 @@ class LoginPage(Page):
         self.email = tkinter.StringVar()
         self.password = tkinter.StringVar()
         self.invalid=tkinter.StringVar()
-        #Add back button
-        ttk.Label(self.frame, text="Email:").grid(column=0,row=0)
-        ttk.Entry(self.frame, textvariable=self.email).grid(column=1,row=0,columnspan=2)
-        ttk.Label(self.frame, text="Password:").grid(column=0,row=1)
-        ttk.Entry(self.frame, textvariable=self.password,show='*').grid(column=1,row=1,columnspan=2)
-        ttk.Button(self.frame, text="Login",command=self.validate).grid(column=1,row=2)
-        ttk.Label(self.frame, textvariable=self.invalid).grid(column=1,row=3)
+        #Add styling
+        ttk.Button(self.frame, text="< Back", command=lambda:self.goto(LoggedOutPage())).grid(column=0,row=0)
+        ttk.Label(self.frame,text="Log in:").grid(column=1,row=0)
+        ttk.Label(self.frame, text="Email:").grid(column=1,row=1)
+        ttk.Entry(self.frame, textvariable=self.email).grid(column=2,row=1,columnspan=2)
+        ttk.Label(self.frame, text="Password:").grid(column=1,row=2)
+        ttk.Entry(self.frame, textvariable=self.password,show='*').grid(column=2,row=2,columnspan=2)
+        ttk.Button(self.frame, text="Login",command=self.validate).grid(column=1,row=3)
+        ttk.Label(self.frame, textvariable=self.invalid).grid(column=1,row=4)
     def validate(self):
         #Fetches encrypted correct password from databse
         cur.execute("SELECT Password from Teachers WHERE Email = ?",(self.email.get(),))
@@ -127,7 +139,8 @@ class MainPage(Page):
     def display(self):
         self.CanvasWidth = 500
         self.CanvasHeight = 500
-        ttk.Button(self.frame, text="Class",command="").grid(column=0,row=0)
+        #ttk.Button(self.frame, text="Class",command="").grid(column=0,row=0)
+        self.displayMenu()
         ttk.Button(self.frame, text="Student",command="").grid(column=1,row=0)
         ttk.Button(self.frame,text="Arrange",command="").grid(column=2,row=0)
         ttk.Button(self.frame,text="Hide images",command="").grid(column=4,row=0)
@@ -136,12 +149,24 @@ class MainPage(Page):
                        width=self.CanvasWidth,
                        height=self.CanvasHeight,
                        background='white').grid(column=0,row=1,columnspan=5,rowspan=5)
+    def displayMenu(self):
+        menubar = tkinter.Menu(self.frame)
+        self.frame['menu'] = menubar
+        menu_file = tkinter.Menu(menubar)
+        menu_edit = tkinter.Menu(menubar)
+        menubar.add_cascade(menu=menu_file, label='File')
+        menubar.add_cascade(menu=menu_edit, label='Edit')
+        menu_file.add_command(label='New', command="")
+        menu_file.add_command(label='Open...', command="")
+        menu_edit.add_command(label='New', command="")
+        menu_edit.add_command(label='Open...', command="")
 
 
 
 
 root = tkinter.Tk()
 root.title( "Seating Planner" )
-LoggedOutPage().display()
+root.option_add('*tearOff', False)
+MainPage().display()
 root.mainloop()
 connection.close()
