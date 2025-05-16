@@ -181,6 +181,36 @@ class MainPage(Page):
 
         
 
+class Widget:
+    def __init__(self,x=0,y=0,facing='S'):
+        self.x=x
+        self.y=y
+        self.direction=facing
+    def move(self):
+        print("uyp")
+    def rotate(self):
+        print("yup")
+
+class Seat(Widget):
+    def display(self):
+        ''''''
+
+class POI(Widget):
+    def display(self):
+        ''''''
+
+class Student(Widget):
+    def display(self):
+        ''''''
+    def getData(self):
+        #Finish the SQL statement
+        cur.execute("SELECT FirstName, LastName, PhotoPath FROM Students WHERE ")
+        data=cur.fetchone()
+        self.firstName=data[0]
+        self.lastName=data[1]
+        self.photoPath=data[2]
+        #Tags
+
 
 
 
