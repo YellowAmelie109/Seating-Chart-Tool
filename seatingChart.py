@@ -1,57 +1,64 @@
 #Add seats
-#Add databases
 #Students pop-up
 #POI
 #Students
+#Class list (switch+login)
+#Press enter key on login/register
 
 #Window needs to be resized when going to pages and text display(password invalid format text)
 #Styling
 
-import tkinter 
+import tkinter as tk
 from tkinter import ttk
 import sqlite3 as sql
-import bcrypt
-import re
+import bcrypt #Encrypt password
+import re #Regex
 
-connection = sql.connect("seatingChartData.db")
-cur = connection.cursor()
+#Constants
 
+#Email validation
 DOMAINS=("exe-coll.ac.uk","exetermathematicsschool.ac.uk")
-#At least 1 letter, any number of numbers, one or no (+, least one alphanumeric character), one @
+#Regex for at least 1 letter, then any number of numbers, then one or no (+, least one alphanumeric character), then one @
 #eg. EdHorncastle183+f8h_6f@
 EMAILFORMAT="[A-z]+\d*(\+\w+)?@" 
+#Database path
+DATABASE = "seatingChartData.db"
 
+#Classes
 
-
+#Base class for all page classes to inherit from
 class Page:
-    def __init__(self):
-        self.frame = ttk.Frame(root)
+    def __init__(self,root):
+        self.root=root
+        self.frame = ttk.Frame(self.root)
         self.frame.grid()
     def goto(self, page):
         self.frame.destroy()
-        page.frame = ttk.Frame(root)
-        page.frame.grid()
-        page.display()
+        page(self.root)
 
 
+#Page that is visible on first load
 class LoggedOutPage(Page):
-    def display(self):
-        ttk.Label(self.frame, text="Please register or log in to access your seating charts").grid(column=1,row=0,sticky=(tkinter.W,tkinter.E))
-        ttk.Button(self.frame, text="Register", command=lambda:self.goto(RegisterPage())).grid(column=1,row=1)
-        ttk.Button(self.frame, text="Log in", command=lambda:self.goto(LoginPage())).grid(column=1,row=2,sticky=tkinter.S)
-        #Add whitespace, looks weird don't like it and style it ig
+    def __init__(self,root):
+        super().__init__(root)
 
+        ttk.Label(self.frame, text="Please register or log in to access your seating charts").grid(column=1,row=0)
+        ttk.Button(self.frame, text="Register", command=lambda:self.goto(RegisterPage)).grid(column=1,row=1)
+        ttk.Button(self.frame, text="Log in", command=lambda:self.goto(LoginPage)).grid(column=1,row=2)
+
+#Page for registering new users, validating their inputs, and adding to database
 class RegisterPage(Page):
-    def display(self):
-        self.firstName = tkinter.StringVar()
-        self.lastName= tkinter.StringVar()
-        self.email = tkinter.StringVar()
-        self.password = tkinter.StringVar()
-        self.password2 = tkinter.StringVar()
-        self.invalid = tkinter.StringVar()
+    def __init__(self,root):
+        super().__init__(root)
 
-        #Add styling
-        ttk.Button(self.frame, text="< Back", command=lambda:self.goto(LoggedOutPage())).grid(column=0,row=0)
+        self.firstName = tk.StringVar()
+        self.lastName= tk.StringVar()
+        self.email = tk.StringVar()
+        self.password = tk.StringVar()
+        self.password2 = tk.StringVar()
+        self.invalid = tk.StringVar()
+
+        ttk.Button(self.frame, text="< Back", command=lambda:self.goto(LoggedOutPage)).grid(column=0,row=0)
         ttk.Label(self.frame,text="Register:").grid(column=1,row=0)
         ttk.Label(self.frame, text="First name:").grid(column=1,row=1,padx=10,pady=10)
         ttk.Entry(self.frame, textvariable = self.firstName).grid(column=2,row=1,columnspan=2)
@@ -66,7 +73,7 @@ class RegisterPage(Page):
         ttk.Label(self.frame, text="Confirm password:").grid(column=1,row=6)
         ttk.Entry(self.frame, textvariable=self.password2,show='*').grid(column=2,row=6,columnspan=2)
         ttk.Button(self.frame, text="Register",command=self.addtoDatabase).grid(column=1,row=7)
-        ttk.Label(self.frame, textvariable=self.invalid).grid(column=1,row=8,columnspan=10) #columnspan?
+        ttk.Label(self.frame, textvariable=self.invalid).grid(column=1,row=8,columnspan=10)
 
     def addtoDatabase(self):
         query="INSERT INTO Teachers (FirstName, LastName, Email, Password) VALUES (?, ?, ?, ?)"
@@ -86,9 +93,11 @@ class RegisterPage(Page):
                     #Prevents emails being registered multiple times
                     try:
                         #Adding to the database
-                        cur.execute(query,(self.firstName.get(),self.lastName.get(),self.email.get(),self.password))
-                        connection.commit()
-                        self.goto(MainPage())
+                        with sql.connect(DATABASE) as conn:
+                            cur = conn.cursor()
+                            cur.execute(query,(self.firstName.get(),self.lastName.get(),self.email.get(),self.password))
+                            conn.commit()
+                        self.goto(ClassPage)
             #Error messages
                     except sql.IntegrityError:
                         self.invalid.set("Email already registered")
@@ -104,16 +113,16 @@ class RegisterPage(Page):
         else:
             self.invalid.set("Invalid email")
 
-
-
-        
+#Page for logging in existing users. Fetches password from database.    
 class LoginPage(Page):
-    def display(self):
-        self.email = tkinter.StringVar()
-        self.password = tkinter.StringVar()
-        self.invalid=tkinter.StringVar()
+    def __init__(self,root):
+        super().__init__(root)
+
+        self.email = tk.StringVar()
+        self.password = tk.StringVar()
+        self.invalid=tk.StringVar()
         #Add styling
-        ttk.Button(self.frame, text="< Back", command=lambda:self.goto(LoggedOutPage())).grid(column=0,row=0)
+        ttk.Button(self.frame, text="< Back", command=lambda:self.goto(LoggedOutPage)).grid(column=0,row=0)
         ttk.Label(self.frame,text="Log in:").grid(column=1,row=0)
         ttk.Label(self.frame, text="Email:").grid(column=1,row=1)
         ttk.Entry(self.frame, textvariable=self.email).grid(column=2,row=1,columnspan=2)
@@ -123,14 +132,16 @@ class LoginPage(Page):
         ttk.Label(self.frame, textvariable=self.invalid).grid(column=1,row=4)
     def validate(self):
         #Fetches encrypted correct password from databse
-        cur.execute("SELECT Password from Teachers WHERE Email = ?",(self.email.get(),))
-        correctPass=cur.fetchone()
+        with sql.connect(DATABASE) as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT Password from Teachers WHERE Email = ?",(self.email.get(),))
+            correctPass=cur.fetchone()
         #correctPass is NoneType when the email entered is not in the database
         try:
             correctPass=correctPass[0]
             #Checks that the password entered matches the encrypted correct password
             if bcrypt.checkpw(self.password.get().encode('utf-8'), correctPass):
-                self.goto(MainPage())
+                self.goto(ClassPage)
         #Error messages
             else:
                 self.invalid.set("Password incorrect.")
@@ -139,84 +150,91 @@ class LoginPage(Page):
 
 
 
+#Page for displaying the seating chart and menu of tools.
+class ClassPage(Page):
+    def __init__(self,root):
+        super().__init__(root)
 
-class MainPage(Page):
-    def display(self):
-        self.CanvasWidth = 900
-        self.CanvasHeight = 900
+        self.CANVASWIDTH = 900
+        self.CANVASHEIGHT = 900
 
         self.displayMenu()
-        tkinter.Canvas(self.frame,
-                       width=self.CanvasWidth,
-                       height=self.CanvasHeight,
+        tk.Canvas(self.frame,
+                       width=self.CANVASWIDTH,
+                       height=self.CANVASHEIGHT,
                        background='white').grid(column=0,row=1,columnspan=5,rowspan=5)
     
     def displayMenu(self):
-        menubar = tkinter.Menu(root,background="lightyellow")
-        root['menu'] = menubar
+        menubar = tk.Menu(self.root,background="lightyellow")
+        self.root['menu'] = menubar
 
         #"Class" dropdown menu
-        menu_class = tkinter.Menu(menubar)
+        menu_class = tk.Menu(menubar)
         menubar.add_cascade(menu=menu_class, label='Class')
         menu_class.add_command(label='Switch class', command="")
         menu_class.add_command(label="Save", command="")
         menu_class.add_command(label="Edit class",command="")
 
         #"Students" dropdown menu
-        menu_students = tkinter.Menu(menubar)
+        menu_students = tk.Menu(menubar)
         menubar.add_cascade(menu=menu_students, label="Students")
         menu_students.add_command(label='Edit students', command ="")
 
         #"Arrange" dropdown menu
-        menu_arrange = tkinter.Menu(menubar)
+        menu_arrange = tk.Menu(menubar)
         menubar.add_cascade(menu=menu_arrange, label="Arrange")
         
         #Tick box to choose to hide or show names of students
-        hideNames=tkinter.StringVar()
+        hideNames=tk.StringVar()
         menubar.add_checkbutton(label="Hide names", variable=hideNames, onvalue=True, offvalue=False)
 
         #Tick box to choose to hide or show images of students
-        hideImages=tkinter.StringVar()
+        hideImages=tk.StringVar()
         menubar.add_checkbutton(label="Hide images", variable=hideImages, onvalue=True, offvalue=False)
 
         
-
+#Base class for all widgets to inherit from
 class Widget:
-    def __init__(self,x=0,y=0,facing='S'):
+    def __init__(self,x=0,y=0,rot='S'):
         self.x=x
         self.y=y
-        self.direction=facing
+        self.dir=rot
     def move(self):
-        print("uyp")
+        print("uyp") #
     def rotate(self):
-        print("yup")
+        print("yup") #
 
 class Seat(Widget):
-    def display(self):
-        ''''''
+    def __init__(self):
+        super.__init__()
 
 class POI(Widget):
-    def display(self):
-        ''''''
+    def __init__(self):
+        super.__init__()
 
 class Student(Widget):
-    def display(self):
-        ''''''
-    def getData(self):
-        #Finish the SQL statement
-        cur.execute("SELECT FirstName, LastName, PhotoPath FROM Students WHERE ")
-        data=cur.fetchone()
+    def __init__(self):
+        super.__init__()
+    def getData(self,id):
+        #<<<<-----------------------------------------------------------------
+        with sql.connect(DATABASE) as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT FirstName, LastName, PhotoPath FROM Students WHERE StudentID = ?",(id,))
+            data=cur.fetchone()
         self.firstName=data[0]
         self.lastName=data[1]
         self.photoPath=data[2]
         #Tags
 
+#Subroutines
 
+def main():
+    root = tk.Tk()
+    root.title( "Seating Planner" )
+    root.option_add('*tearOff', False)
+    LoggedOutPage(root)
 
+    root.mainloop()
 
-root = tkinter.Tk()
-root.title( "Seating Planner" )
-root.option_add('*tearOff', False)
-LoggedOutPage().display()
-root.mainloop()
-connection.close()
+#================================================
+main()
