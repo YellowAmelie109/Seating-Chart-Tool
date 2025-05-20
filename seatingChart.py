@@ -159,10 +159,12 @@ class ClassPage(Page):
         self.CANVASHEIGHT = 900
 
         self.displayMenu()
-        tk.Canvas(self.frame,
+        canvas = tk.Canvas(self.frame,
                        width=self.CANVASWIDTH,
                        height=self.CANVASHEIGHT,
-                       background='white').grid(column=0,row=1,columnspan=5,rowspan=5)
+                       background='white')
+        canvas.grid(column=0,row=1,columnspan=5,rowspan=5)
+        Seat(canvas)
     
     def displayMenu(self):
         menubar = tk.Menu(self.root,background="lightyellow")
@@ -195,18 +197,27 @@ class ClassPage(Page):
         
 #Base class for all widgets to inherit from
 class Widget:
-    def __init__(self,x=0,y=0,rot='S'):
+    def __init__(self,canvas,x,y,rot):
         self.x=x
         self.y=y
         self.dir=rot
-    def move(self):
-        print("uyp") #
+        self.canvas=canvas
+    def move(self,event):
+        if event.x<int(self.canvas["width"]) and event.y<int(self.canvas["height"]):
+            self.canvas.move(self.id,event.x-self.x,event.y-self.y)
+            self.x=event.x
+            self.y=event.y
+        
+        
     def rotate(self):
         print("yup") #
 
 class Seat(Widget):
-    def __init__(self):
-        super.__init__()
+    def __init__(self,canvas,x=0,y=0,rot='S'):
+        super().__init__(canvas,x,y,rot)
+        self.id=self.canvas.create_rectangle(self.x,self.y,self.x+100,self.y +100, fill='red', outline='blue',tags='seat')
+        self.canvas.tag_bind(self.id,"<B1-Motion>", self.move)
+        
 
 class POI(Widget):
     def __init__(self):
@@ -232,7 +243,7 @@ def main():
     root = tk.Tk()
     root.title( "Seating Planner" )
     root.option_add('*tearOff', False)
-    LoggedOutPage(root)
+    ClassPage(root)
 
     root.mainloop()
 
