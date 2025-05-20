@@ -197,25 +197,27 @@ class ClassPage(Page):
         
 #Base class for all widgets to inherit from
 class Widget:
-    def __init__(self,canvas,x,y,rot):
+    def __init__(self,canvas,x,y,rot,width,height):
         self.x=x
         self.y=y
         self.dir=rot
         self.canvas=canvas
+        self.width=width
+        self.height=height
     def move(self,event):
         if event.x<int(self.canvas["width"]) and event.y<int(self.canvas["height"]):
-            self.canvas.move(self.id,event.x-self.x,event.y-self.y)
-            self.x=event.x
-            self.y=event.y
+            self.canvas.move(self.id,event.x-self.x-self.width/2,event.y-self.y-self.width/2)
+            self.x=self.canvas.coords(self.id)[0]
+            self.y=self.canvas.coords(self.id)[1]
         
         
     def rotate(self):
         print("yup") #
 
 class Seat(Widget):
-    def __init__(self,canvas,x=0,y=0,rot='S'):
-        super().__init__(canvas,x,y,rot)
-        self.id=self.canvas.create_rectangle(self.x,self.y,self.x+100,self.y +100, fill='red', outline='blue',tags='seat')
+    def __init__(self,canvas,x=0,y=0,rot='S',width=100,height=100):
+        super().__init__(canvas,x,y,rot,width,height)
+        self.id=self.canvas.create_rectangle(self.x,self.y,self.x+self.width,self.y +self.height, fill='red', outline='blue',tags='seat')
         self.canvas.tag_bind(self.id,"<B1-Motion>", self.move)
         
 
