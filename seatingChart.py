@@ -1,9 +1,12 @@
-#Add seats
+#Test why assigning rotate to a key is not working - os or tkinter?
+#Add the ability to add seats
 #Students pop-up
 #POI
 #Students
 #Class list (switch+login)
 #Press enter key on login/register
+#Sepearate register validation into different methods and move constants
+#Make password regex format a constant
 
 #Window needs to be resized when going to pages and text display(password invalid format text)
 #Styling
@@ -113,6 +116,10 @@ class RegisterPage(Page):
         else:
             self.invalid.set("Invalid email")
 
+    def validate(self):
+        ''''''
+
+
 #Page for logging in existing users. Fetches password from database.    
 class LoginPage(Page):
     def __init__(self,root):
@@ -164,7 +171,7 @@ class ClassPage(Page):
                        height=self.CANVASHEIGHT,
                        background='white')
         canvas.grid(column=0,row=1,columnspan=5,rowspan=5)
-        Seat(canvas)
+        Seat(canvas,x=100,y=100)
     
     def displayMenu(self):
         menubar = tk.Menu(self.root,background="lightyellow")
@@ -205,20 +212,59 @@ class Widget:
         self.width=width
         self.height=height
     def move(self,event):
-        if event.x<int(self.canvas["width"]) and event.y<int(self.canvas["height"]):
-            self.canvas.move(self.id,event.x-self.x-self.width/2,event.y-self.y-self.width/2)
+        #Prevents widget being moved outside of canvas
+        if event.x<int(self.canvas["width"]) and event.y<int(self.canvas["height"]) and event.x>0 and event.y>0:
+            #Moves so that the mouse is the center
+            self.canvas.move(self.tag,event.x-self.x-self.width/2,event.y-self.y-self.width/2) 
             self.x=self.canvas.coords(self.id)[0]
             self.y=self.canvas.coords(self.id)[1]
         
         
-    def rotate(self):
-        print("yup") #
+    def rotate(self,event):
+        match self.dir:
+            case 'W':
+                self.dir='N'
+            case 'N':
+                self.dir='E'
+            case 'S':
+                self.dir='W'
+            case 'E':
+                self.dir='S'
+        self.displayDirection()
 
 class Seat(Widget):
     def __init__(self,canvas,x=0,y=0,rot='S',width=100,height=100):
         super().__init__(canvas,x,y,rot,width,height)
+
         self.id=self.canvas.create_rectangle(self.x,self.y,self.x+self.width,self.y +self.height, fill='red', outline='blue',tags='seat')
-        self.canvas.tag_bind(self.id,"<B1-Motion>", self.move)
+        self.tag="seat"+str(self.id)
+        canvas.addtag_withtag(self.tag,self.id)
+
+        self.textid=self.canvas.create_text(self.x,self.y,tags=('seat',self.tag),font=("Arial", 20))
+        self.displayDirection()
+
+        self.canvas.tag_bind(self.tag,"<B1-Motion>", self.move)
+        self.canvas.tag_bind(self.tag,"<ButtonPress-3>",self.rotate)
+
+    def displayDirection(self):
+        match self.dir:
+            case 'N':
+                self.canvas.itemconfigure(self.textid,text='↑')
+                self.canvas.coords(self.textid, self.x+self.width/2, self.y)
+            case 'E':
+                self.canvas.itemconfigure(self.textid,text='→')
+                self.canvas.coords(self.textid, self.x+self.width, self.y+self.width/2)
+            case 'W':
+                self.canvas.itemconfigure(self.textid,text='←')
+                self.canvas.coords(self.textid, self.x, self.y+self.width/2)
+            case 'S':
+                self.canvas.itemconfigure(self.textid,text='↓')
+                self.canvas.coords(self.textid, self.x+self.width/2, self.y+self.width)
+            case _:
+                self.canvas.itemconfigure(self.textid,text='↓')
+                self.canvas.coords(self.textid, self.x+self.width/2, self.y+self.width)
+                self.dir='S'
+
         
 
 class POI(Widget):
