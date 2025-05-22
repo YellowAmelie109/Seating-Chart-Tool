@@ -1,4 +1,3 @@
-#Test why assigning rotate to a key is not working - os or tkinter?
 #Add the ability to add seats
 #Students pop-up
 #POI
@@ -13,6 +12,7 @@
 
 import tkinter as tk
 from tkinter import ttk
+from PIL import Image,ImageTk
 import sqlite3 as sql
 import bcrypt #Encrypt password
 import re #Regex
@@ -31,7 +31,7 @@ DATABASE = "seatingChartData.db"
 
 #Base class for all page classes to inherit from
 class Page:
-    def __init__(self,root):
+    def __init__(self,root:tk.Tk):
         self.root=root
         self.frame = ttk.Frame(self.root)
         self.frame.grid()
@@ -162,16 +162,19 @@ class ClassPage(Page):
     def __init__(self,root):
         super().__init__(root)
 
-        self.CANVASWIDTH = 900
-        self.CANVASHEIGHT = 900
+        self.CANVASWIDTH =  900
+        self.CANVASHEIGHT =  900
 
         self.displayMenu()
-        canvas = tk.Canvas(self.frame,
+        self.canvas = tk.Canvas(self.frame,
                        width=self.CANVASWIDTH,
                        height=self.CANVASHEIGHT,
                        background='white')
-        canvas.grid(column=0,row=1,columnspan=5,rowspan=5)
-        Seat(canvas,x=100,y=100)
+        self.canvas.grid(column=0,row=1,columnspan=5,rowspan=5)
+        maxSeats=10
+        for i in range(maxSeats):
+            Seat(self.canvas,x=i*(self.CANVASWIDTH/maxSeats))
+        Student(self.canvas,y=100)
     
     def displayMenu(self):
         menubar = tk.Menu(self.root,background="lightyellow")
@@ -195,23 +198,25 @@ class ClassPage(Page):
         
         #Tick box to choose to hide or show names of students
         hideNames=tk.StringVar()
-        menubar.add_checkbutton(label="Hide names", variable=hideNames, onvalue=True, offvalue=False)
+        menubar.add_checkbutton(label="Hide names", variable=hideNames, onvalue=True, offvalue=False,command="")
 
         #Tick box to choose to hide or show images of students
         hideImages=tk.StringVar()
-        menubar.add_checkbutton(label="Hide images", variable=hideImages, onvalue=True, offvalue=False)
+        menubar.add_checkbutton(label="Hide images", variable=hideImages, onvalue=True, offvalue=False,command="")
+
+        #menubar.add_command(label="Add seat")
 
         
 #Base class for all widgets to inherit from
 class Widget:
-    def __init__(self,canvas,x,y,rot,width,height):
+    def __init__(self,canvas:tk.Canvas,x,y,rot,width,height):
         self.x=x
         self.y=y
         self.dir=rot
         self.canvas=canvas
         self.width=width
         self.height=height
-    def move(self,event):
+    def move(self,event:tk.Event):
         #Prevents widget being moved outside of canvas
         if event.x<int(self.canvas["width"]) and event.y<int(self.canvas["height"]) and event.x>0 and event.y>0:
             #Moves so that the mouse is the center
@@ -233,18 +238,22 @@ class Widget:
         self.displayDirection()
 
 class Seat(Widget):
-    def __init__(self,canvas,x=0,y=0,rot='S',width=100,height=100):
-        super().__init__(canvas,x,y,rot,width,height)
+    #Keeping track of total seats in the class to prevent more seats than maxSeats in database from being created
+    seats=0
+    def __init__(self,canvas,x=0,y=0,rot='S',width=100):
+        super().__init__(canvas,x,y,rot,width,width)
+        Seat.seats+=1
 
-        self.id=self.canvas.create_rectangle(self.x,self.y,self.x+self.width,self.y +self.height, fill='red', outline='blue',tags='seat')
+        self.id=self.canvas.create_rectangle(self.x,self.y,self.x+self.width,self.y +self.width, fill='red', outline='blue',tags='seat')
+        #Rectangles and arrows have the same tag so they move together when dragged
         self.tag="seat"+str(self.id)
-        canvas.addtag_withtag(self.tag,self.id)
+        self.canvas.addtag_withtag(self.tag,self.id)
 
         self.textid=self.canvas.create_text(self.x,self.y,tags=('seat',self.tag),font=("Arial", 20))
         self.displayDirection()
 
-        self.canvas.tag_bind(self.tag,"<B1-Motion>", self.move)
-        self.canvas.tag_bind(self.tag,"<ButtonPress-3>",self.rotate)
+        self.canvas.tag_bind(self.tag,"<B1-Motion>", self.move) #Hold left click and drag to move widget
+        self.canvas.tag_bind(self.tag,"<ButtonPress-3>",self.rotate) #Press right click to rotate arrow
 
     def displayDirection(self):
         match self.dir:
@@ -269,11 +278,19 @@ class Seat(Widget):
 
 class POI(Widget):
     def __init__(self):
-        super.__init__()
+        super().__init__()
 
 class Student(Widget):
-    def __init__(self):
-        super.__init__()
+    def __init__(self,canvas,x=0,y=0,rot='S',width=75):
+        super().__init__(canvas,x,y,rot,width,width)
+
+        self.id=self.canvas.create_rectangle(self.x,self.y,self.x+self.width,self.y +self.width, fill='#ffdb32', outline='black',tags='student')
+        self.tag="student"+str(self.id)
+        self.canvas.addtag_withtag(self.tag,self.id)
+
+        #self.image=ImageTk.PhotoImage(Image.open("DatabaseAnalysis.png"))
+        #self.canvas.create_image(self.x,self.y,image=self.image,anchor=tk.NW)
+
     def getData(self,id):
         #<<<<-----------------------------------------------------------------
         with sql.connect(DATABASE) as conn:
