@@ -162,6 +162,8 @@ class ClassPage(Page):
     def __init__(self,root):
         super().__init__(root)
 
+        self.classid=1 #Change when different class added
+
         self.CANVASWIDTH =  900
         self.CANVASHEIGHT =  900
 
@@ -174,7 +176,17 @@ class ClassPage(Page):
         maxSeats=10
         for i in range(maxSeats):
             Seat(self.canvas,x=i*(self.CANVASWIDTH/maxSeats))
-        Student(self.canvas,y=100)
+        self.students=self.getStudentData()
+        for i in range(len(self.students)):
+            self.students[i]=Student(self.canvas,self.students[i],i*(self.CANVASWIDTH/len(self.students)),100)
+    
+    def getStudentData(self):
+        query="SELECT StudentID, FirstName, LastName, PhotoPath FROM Students INNER JOIN StudentClass USING (StudentID) WHERE ClassID = ?"
+        with sql.connect(DATABASE) as conn:
+            cur = conn.cursor()
+            cur.execute(query,(self.classid,))
+            students=cur.fetchall()
+            return students
     
     def displayMenu(self):
         menubar = tk.Menu(self.root,background="lightyellow")
@@ -197,14 +209,24 @@ class ClassPage(Page):
         menubar.add_cascade(menu=menu_arrange, label="Arrange")
         
         #Tick box to choose to hide or show names of students
-        hideNames=tk.StringVar()
-        menubar.add_checkbutton(label="Hide names", variable=hideNames, onvalue=True, offvalue=False,command="")
+        self.hideNames=False
+        menubar.add_checkbutton(label="Hide names", command=self.changeNameVisibility)
 
         #Tick box to choose to hide or show images of students
-        hideImages=tk.StringVar()
-        menubar.add_checkbutton(label="Hide images", variable=hideImages, onvalue=True, offvalue=False,command="")
+        self.hideImages=tk.StringVar()
+        menubar.add_checkbutton(label="Hide images", variable=self.hideImages, onvalue=True, offvalue=False,command="")
 
         #menubar.add_command(label="Add seat")
+    
+    def changeNameVisibility(self):
+        if self.hideNames==False:
+            self.hideNames=True
+            self.canvas.itemconfigure("studentname",text="")
+        else:
+            self.hideNames=False
+            for student in self.students:
+                self.canvas.itemconfigure(student.textid,text=student.firstName+" "+student.lastName)
+    
 
         
 #Base class for all widgets to inherit from
@@ -281,15 +303,21 @@ class POI(Widget):
         super().__init__()
 
 class Student(Widget):
-    def __init__(self,canvas,x=0,y=0,rot='S',width=75):
+    def __init__(self,canvas,data,x=0,y=0,rot='S',width=75):
         super().__init__(canvas,x,y,rot,width,width)
+
+        self.studentID=data[0]
+        self.firstName=data[1]
+        self.lastName=data[2]
+        self.photoPath=data[3]
 
         self.id=self.canvas.create_rectangle(self.x,self.y,self.x+self.width,self.y +self.width, fill='#ffdb32', outline='black',tags='student')
         self.tag="student"+str(self.id)
         self.canvas.addtag_withtag(self.tag,self.id)
 
-        #self.image=ImageTk.PhotoImage(Image.open("DatabaseAnalysis.png"))
-        #self.canvas.create_image(self.x,self.y,image=self.image,anchor=tk.NW)
+        self.textid=self.canvas.create_text(self.x+self.width,self.y,tags=('student',self.tag,"studentname"),text=self.firstName+' '+self.lastName,anchor=tk.NE,width=self.width,justify='right')
+        
+        self.canvas.tag_bind(self.tag,"<B1-Motion>", self.move)
 
     def getData(self,id):
         #<<<<-----------------------------------------------------------------
