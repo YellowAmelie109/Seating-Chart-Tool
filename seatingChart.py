@@ -162,11 +162,12 @@ class ClassPage(Page):
                        background='white')
         self.canvas.grid(column=0,row=1,columnspan=5,rowspan=5)
         maxSeats=10
+        self.seats=list()
         for i in range(maxSeats):
-            Seat(self.canvas,x=i*(self.CANVASWIDTH/maxSeats))
+            self.seats.append(Seat(self.canvas,x=i*(self.CANVASWIDTH/maxSeats)))
         self.students=self.getStudentData()
         for i in range(len(self.students)):
-            self.students[i]=Student(self.canvas,self.students[i],i*(self.CANVASWIDTH/len(self.students)),100)
+            self.students[i]=Student(self.canvas,self.students[i],i*(self.CANVASWIDTH/len(self.students)),100,seats=self.seats)
     
     def getStudentData(self):
         query="SELECT StudentID, FirstName, LastName, PhotoPath FROM Students INNER JOIN StudentClass USING (StudentID) WHERE ClassID = ?"
@@ -219,10 +220,9 @@ class ClassPage(Page):
         
 #Base class for all widgets to inherit from
 class Widget:
-    def __init__(self,canvas:tk.Canvas,x,y,rot,width,height):
+    def __init__(self,canvas:tk.Canvas,x,y,width,height):
         self.x=x
         self.y=y
-        self.dir=rot
         self.canvas=canvas
         self.width=width
         self.height=height
@@ -230,29 +230,19 @@ class Widget:
         #Prevents widget being moved outside of canvas
         if event.x<int(self.canvas["width"]) and event.y<int(self.canvas["height"]) and event.x>0 and event.y>0:
             #Moves so that the mouse is the center
-            self.canvas.move(self.tag,event.x-self.x-self.width/2,event.y-self.y-self.width/2) 
+            self.canvas.move(self.tag,event.x-self.x-self.width/2,event.y-self.y-self.width/2)
             self.x=self.canvas.coords(self.id)[0]
             self.y=self.canvas.coords(self.id)[1]
         
-        
-    def rotate(self,event):
-        match self.dir:
-            case 'W':
-                self.dir='N'
-            case 'N':
-                self.dir='E'
-            case 'S':
-                self.dir='W'
-            case 'E':
-                self.dir='S'
-        self.displayDirection(event)
 
 class Seat(Widget):
     #Keeping track of total seats in the class to prevent more seats than maxSeats in database from being created
     seats=0
     def __init__(self,canvas,x=0,y=0,rot='S',width=100):
-        super().__init__(canvas,x,y,rot,width,width)
+        super().__init__(canvas,x,y,width,width)
         Seat.seats+=1
+
+        self.dir=rot
 
         self.id=self.canvas.create_rectangle(self.x,self.y,self.x+self.width,self.y +self.width, fill='red', outline='blue',tags=('seat','seatbox'))
         #Rectangles and arrows have the same tag so they move together when dragged
@@ -264,6 +254,18 @@ class Seat(Widget):
 
         self.canvas.tag_bind(self.tag,"<B1-Motion>", self.move) #Hold left click and drag to move widget
         self.canvas.tag_bind(self.tag,"<ButtonPress-3>",self.rotate) #Press right click to rotate arrow
+
+    def rotate(self,*args):
+        match self.dir:
+            case 'W':
+                self.dir='N'
+            case 'N':
+                self.dir='E'
+            case 'S':
+                self.dir='W'
+            case 'E':
+                self.dir='S'
+        self.displayDirection()
 
     def displayDirection(self,*args):
         match self.dir:
@@ -291,13 +293,16 @@ class POI(Widget):
         super().__init__()
 
 class Student(Widget):
-    def __init__(self,canvas,data,x=0,y=0,rot='S',width=75):
-        super().__init__(canvas,x,y,rot,width,width)
+    def __init__(self,canvas,data,x=0,y=0,width=75,seats:Seat=None):
+        super().__init__(canvas,x,y,width,width)
 
         self.studentID=data[0]
         self.firstName=data[1]
         self.lastName=data[2]
         self.photoPath=data[3]
+
+        self.seat=None
+        self.seats=seats
 
         self.id=self.canvas.create_rectangle(self.x,self.y,self.x+self.width,self.y +self.width, fill='#ffdb32', outline='black',tags='student')
         self.tag="student"+str(self.id)
@@ -307,18 +312,24 @@ class Student(Widget):
         
         self.canvas.tag_bind(self.tag,"<B1-Motion>", self.move)
         self.canvas.tag_bind(self.tag,"<ButtonRelease-1>", self.checkForSeat)
-        self.canvas.tag_bind(self.tag,"<ButtonPress-3>",self.rotate)
+        self.canvas.tag_bind(self.tag,"<ButtonPress-3>",self.rotateSeat)
+
     def checkForSeat(self,event):
-        for seatID in self.canvas.find_withtag('seatbox'):
+        seatFound=False
+        for seatID in self.canvas.find_withtag('seatbox'): #Find if student is entirely within a seat
             seatCoords=self.canvas.coords(seatID)
             ids=self.canvas.find_enclosed(seatCoords[0],seatCoords[1],seatCoords[2],seatCoords[3])
-            if self.id in ids:
-                print("yup") #Assign same tag as seat, rotate command applies to seat with same tag
-            else: #elif command for when moved off seat and has the seat tag, remove seat tag
-                pass
-    #def displayDirection(self,event:tk.Event):
-     #   seat=self.canvas.find_closest(event.x,event.y,halo=self.width)
-      #  print(seat)
+            if self.id in ids: #Save seat id and snap student to centre of seat
+                self.seat=seatID
+                seatInfo=self.canvas.itemconfigure(self.seat)
+                seatFound=True
+
+        if isinstance(self.seat,int) and not seatFound: #When moved off seat, remove seat id
+            self.seat=None
+
+    def rotateSeat(self,*args):
+        if isinstance(self.seat,int):
+            self.seats[self.seat//2].rotate()
 
 #Subroutines
 
@@ -326,7 +337,7 @@ def main():
     root = tk.Tk()
     root.title( "Seating Planner" )
     root.option_add('*tearOff', False)
-    ClassPage(root)
+    LoggedOutPage(root)
 
     root.mainloop()
 
