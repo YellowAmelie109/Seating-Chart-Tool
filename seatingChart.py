@@ -1,15 +1,3 @@
-#Add the ability to add seats
-#Students pop-up
-#POI
-#Students
-#Class list (switch+login)
-#Press enter key on login/register
-#Sepearate register validation into different methods and move constants
-#Make password regex format a constant
-
-#Window needs to be resized when going to pages and text display(password invalid format text)
-#Styling
-
 import tkinter as tk
 from tkinter import ttk
 from PIL import Image,ImageTk
@@ -257,7 +245,7 @@ class Widget:
                 self.dir='W'
             case 'E':
                 self.dir='S'
-        self.displayDirection()
+        self.displayDirection(event)
 
 class Seat(Widget):
     #Keeping track of total seats in the class to prevent more seats than maxSeats in database from being created
@@ -266,7 +254,7 @@ class Seat(Widget):
         super().__init__(canvas,x,y,rot,width,width)
         Seat.seats+=1
 
-        self.id=self.canvas.create_rectangle(self.x,self.y,self.x+self.width,self.y +self.width, fill='red', outline='blue',tags='seat')
+        self.id=self.canvas.create_rectangle(self.x,self.y,self.x+self.width,self.y +self.width, fill='red', outline='blue',tags=('seat','seatbox'))
         #Rectangles and arrows have the same tag so they move together when dragged
         self.tag="seat"+str(self.id)
         self.canvas.addtag_withtag(self.tag,self.id)
@@ -277,7 +265,7 @@ class Seat(Widget):
         self.canvas.tag_bind(self.tag,"<B1-Motion>", self.move) #Hold left click and drag to move widget
         self.canvas.tag_bind(self.tag,"<ButtonPress-3>",self.rotate) #Press right click to rotate arrow
 
-    def displayDirection(self):
+    def displayDirection(self,*args):
         match self.dir:
             case 'N':
                 self.canvas.itemconfigure(self.textid,text='↑')
@@ -318,17 +306,19 @@ class Student(Widget):
         self.textid=self.canvas.create_text(self.x+self.width,self.y,tags=('student',self.tag,"studentname"),text=self.firstName+' '+self.lastName,anchor=tk.NE,width=self.width,justify='right')
         
         self.canvas.tag_bind(self.tag,"<B1-Motion>", self.move)
-
-    def getData(self,id):
-        #<<<<-----------------------------------------------------------------
-        with sql.connect(DATABASE) as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT FirstName, LastName, PhotoPath FROM Students WHERE StudentID = ?",(id,))
-            data=cur.fetchone()
-        self.firstName=data[0]
-        self.lastName=data[1]
-        self.photoPath=data[2]
-        #Tags
+        self.canvas.tag_bind(self.tag,"<ButtonRelease-1>", self.checkForSeat)
+        self.canvas.tag_bind(self.tag,"<ButtonPress-3>",self.rotate)
+    def checkForSeat(self,event):
+        for seatID in self.canvas.find_withtag('seatbox'):
+            seatCoords=self.canvas.coords(seatID)
+            ids=self.canvas.find_enclosed(seatCoords[0],seatCoords[1],seatCoords[2],seatCoords[3])
+            if self.id in ids:
+                print("yup") #Assign same tag as seat, rotate command applies to seat with same tag
+            else: #elif command for when moved off seat and has the seat tag, remove seat tag
+                pass
+    #def displayDirection(self,event:tk.Event):
+     #   seat=self.canvas.find_closest(event.x,event.y,halo=self.width)
+      #  print(seat)
 
 #Subroutines
 
