@@ -161,13 +161,28 @@ class ClassPage(Page):
                        height=self.CANVASHEIGHT,
                        background='white')
         self.canvas.grid(column=0,row=1,columnspan=5,rowspan=5)
-        maxSeats=10
+        self.seatdata=self.getSeatData()
         self.seats=list()
-        for i in range(maxSeats):
-            self.seats.append(Seat(self.canvas,x=i*(self.CANVASWIDTH/maxSeats)))
-        self.students=self.getStudentData()
-        for i in range(len(self.students)):
-            self.students[i]=Student(self.canvas,self.students[i],i*(self.CANVASWIDTH/len(self.students)),100,seats=self.seats)
+        for i in range(len(self.seatdata)):
+            #try:
+            self.seats.append((Seat(self.canvas,self.seatdata[i][0],self.seatdata[i][1],self.seatdata[i][2],self.seatdata[i][3])))
+            #except:
+                #self.seats.append((Seat(self.canvas)))
+
+        #self.seats.append((Seat(self.canvas)))
+                                
+        self.studentdata=self.getStudentData()
+        self.students=list()
+        for i in range(len(self.studentdata)):
+            self.students.append(Student(self.canvas,self.studentdata[i],i*(self.CANVASWIDTH/len(self.studentdata)),100,seats=self.seats))
+
+    def getSeatData(self):
+        query="SELECT SeatID, xPosition, yPosition, Facing FROM Seats WHERE ClassID=?"
+        with sql.connect(DATABASE) as conn:
+            cur = conn.cursor()
+            cur.execute(query,(self.classid,))
+            seats = cur.fetchall()
+            return seats
     
     def getStudentData(self):
         query="SELECT StudentID, FirstName, LastName, PhotoPath FROM Students INNER JOIN StudentClass USING (StudentID) WHERE ClassID = ?"
@@ -175,7 +190,7 @@ class ClassPage(Page):
             cur = conn.cursor()
             cur.execute(query,(self.classid,))
             students=cur.fetchall()
-            return students
+        return students
     
     def displayMenu(self):
         menubar = tk.Menu(self.root,background="lightyellow")
@@ -184,9 +199,9 @@ class ClassPage(Page):
         #"Class" dropdown menu
         menu_class = tk.Menu(menubar)
         menubar.add_cascade(menu=menu_class, label='Class')
-        menu_class.add_command(label='Switch class', command="")
-        menu_class.add_command(label="Save", command="")
+        menu_class.add_command(label="Save", command=self.saveToDatabase)
         menu_class.add_command(label="Edit class",command="")
+        menu_class.add_command(label='Switch class', command="")
 
         #"Students" dropdown menu
         menu_students = tk.Menu(menubar)
@@ -196,6 +211,7 @@ class ClassPage(Page):
         #"Arrange" dropdown menu
         menu_arrange = tk.Menu(menubar)
         menubar.add_cascade(menu=menu_arrange, label="Arrange")
+        menu_arrange.add_command(label="Add seats", command="") #OneNote
         
         #Tick box to choose to hide or show names of students
         self.hideNames=False
@@ -215,12 +231,27 @@ class ClassPage(Page):
             self.hideNames=False
             for student in self.students:
                 self.canvas.itemconfigure(student.textid,text=student.firstName+" "+student.lastName)
+
+    def saveToDatabase(self):
+        insquery="INSERT INTO Seats (ClassID,xPosition,yPosition,Facing) VALUES (?, ?, ?, ?)"
+        updquery="UPDATE Seats SET xPosition = ?, yPosition = ?, Facing = ? WHERE SeatID = ?"
+        with sql.connect(DATABASE) as conn:
+            cur = conn.cursor()
+            for seat in self.seats:
+                if seat.dataid == None:
+                    cur.execute(insquery,(self.classid,seat.x,seat.y,seat.dir))
+                else:
+                    cur.execute(updquery,(seat.x,seat.y,seat.dir,seat.dataid))
+            conn.commit()
+        print("Saved!")
+
     
 
         
 #Base class for all widgets to inherit from
 class Widget:
-    def __init__(self,canvas:tk.Canvas,x,y,width,height):
+    def __init__(self,canvas:tk.Canvas,dataid,x,y,width,height):
+        self.dataid=dataid
         self.x=x
         self.y=y
         self.canvas=canvas
@@ -236,14 +267,12 @@ class Widget:
         
 
 class Seat(Widget):
-    #Keeping track of total seats in the class to prevent more seats than maxSeats in database from being created
-    seats=0
-    def __init__(self,canvas,x=0,y=0,rot='S',width=100):
-        super().__init__(canvas,x,y,width,width)
-        Seat.seats+=1
+    #seats=0
+    def __init__(self,canvas,dataid=None,x=0,y=0,rot='S',width=100):
+        super().__init__(canvas,dataid,x,y,width,width)
+        #Seat.seats+=1
 
         self.dir=rot
-
         self.id=self.canvas.create_rectangle(self.x,self.y,self.x+self.width,self.y +self.width, fill='red', outline='blue',tags=('seat','seatbox'))
         #Rectangles and arrows have the same tag so they move together when dragged
         self.tag="seat"+str(self.id)
@@ -294,7 +323,7 @@ class POI(Widget):
 
 class Student(Widget):
     def __init__(self,canvas,data,x=0,y=0,width=75,seats:Seat=None):
-        super().__init__(canvas,x,y,width,width)
+        super().__init__(canvas,None,x,y,width,width)
 
         self.studentID=data[0]
         self.firstName=data[1]
@@ -314,14 +343,23 @@ class Student(Widget):
         self.canvas.tag_bind(self.tag,"<ButtonRelease-1>", self.checkForSeat)
         self.canvas.tag_bind(self.tag,"<ButtonPress-3>",self.rotateSeat)
 
-    def checkForSeat(self,event):
+    def checkForSeat(self,*args):
         seatFound=False
         for seatID in self.canvas.find_withtag('seatbox'): #Find if student is entirely within a seat
             seatCoords=self.canvas.coords(seatID)
             ids=self.canvas.find_enclosed(seatCoords[0],seatCoords[1],seatCoords[2],seatCoords[3])
             if self.id in ids: #Save seat id and snap student to centre of seat
                 self.seat=seatID
-                seatInfo=self.canvas.itemconfigure(self.seat)
+                #Update coords
+                seatCoords=self.canvas.coords(self.seat)
+                gap=(seatCoords[2]-seatCoords[0]-self.width)/2
+                self.x=seatCoords[0]+gap
+                self.y=seatCoords[1]+gap
+                #Move square
+                self.canvas.coords(self.id,self.x,self.y,seatCoords[2]-gap,seatCoords[3]-gap)
+                #Move text
+                self.canvas.coords(self.textid, self.x+self.width, self.y)
+
                 seatFound=True
 
         if isinstance(self.seat,int) and not seatFound: #When moved off seat, remove seat id
@@ -337,7 +375,7 @@ def main():
     root = tk.Tk()
     root.title( "Seating Planner" )
     root.option_add('*tearOff', False)
-    LoggedOutPage(root)
+    ClassPage(root)
 
     root.mainloop()
 
