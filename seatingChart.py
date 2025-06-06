@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import ttk
-from PIL import Image,ImageTk
 import sqlite3 as sql
 import bcrypt #Encrypt password
 import re #Regex
@@ -80,13 +79,13 @@ class RegisterPage(Page):
                 #At least one each of symbol, capital letter, and number between 8-16 characters
                 if re.search("[^\w\s]+",password) and re.search("[A-Z]+",password) and re.search("\d+",
                 password) and len(password)>=8 and len(password)<=16:
-                    self.password = bcrypt.hashpw(password.encode('utf-8') , bcrypt.gensalt() )
+                    password=bcrypt.hashpw(password.encode('utf-8') , bcrypt.gensalt() )
                     #Prevents emails being registered multiple times
                     try:
                         #Adding to the database
                         with sql.connect(DATABASE) as conn:
                             cur = conn.cursor()
-                            cur.execute(query,(self.firstName.get(),self.lastName.get(),self.email.get(),self.password))
+                            cur.execute(query,(self.firstName.get(),self.lastName.get(),self.email.get(),password))
                             conn.commit()
                         self.goto(ClassPage)
             #Error messages
@@ -103,9 +102,6 @@ class RegisterPage(Page):
                     self.invalid.set("Passwords do not match")
         else:
             self.invalid.set("Invalid email")
-
-    def validate(self):
-        ''''''
 
 
 #Page for logging in existing users. Fetches password from database.    
@@ -375,7 +371,7 @@ def main():
     root = tk.Tk()
     root.title( "Seating Planner" )
     root.option_add('*tearOff', False)
-    ClassPage(root)
+    LoggedOutPage(root)
 
     root.mainloop()
 
